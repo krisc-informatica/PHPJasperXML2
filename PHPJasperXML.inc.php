@@ -1,116 +1,129 @@
 <?php
-
-// version 0.9d
 class PHPJasperXML {
-  private $adjust = 1.2;
-  public $version = "0.9d";
-  private $pdflib;
-  private $lang;
-  private $previousarraydata;
+  public $version = "0.10.1";
   public $debugsql = false;
-  private $myconn;
-  private $con;
   public $sql;
   public $group_name;
   public $newPageGroup = false;
-  private $curgroup = 0;
   public $grouplist = array ();
-  private $groupno = 0;
   public $totalgroup = 0;
+  public $bypassnofont = true;
+  public $titlewithpagebreak = false;
+  public $arraysqltable = array ();
+  public $generatestatus = false;
+  
+  private $adjust = 1.2;
+  private $pdflib;
+  private $lang;
+  private $previousarraydata;
+  private $myconn;
+  private $con;
+  private $curgroup = 0;
+  private $groupno = 0;
   private $footershowed = true;
   private $groupnochange = 0; // use for detect record change till which level of grouping (grouping support multilevel)
   private $titleheight = 0;
   private $fontdir = "";
-  public $bypassnofont = true;
-  public $titlewithpagebreak = false;
   private $detailallowtill = 0;
   private $offsetposition = 0;
   private $detailbandqty = 0;
-  public $arraysqltable = array ();
   private $report_count = 0; // ### New declaration (variable exists in original too)
   private $group_count = array (); // ### New declaration
-  public $generatestatus = false;
   
-  public function __construct($lang = "en", $pdflib = "TCPDF") {
+  public function __construct($lang="en", $pdflib="TCPDF") {
     $this->lang = $lang;
-    $this->setErrorReport(0 );
+    $this->setErrorReport(0);
     
     $this->pdflib = $pdflib;
     if ($this->fontdir == "")
-      $this->fontdir = dirname(__FILE__ ) . "/tcpdf/fonts";
+      $this->fontdir = dirname(__FILE__) . "/lib/tcpdf/fonts";
   }
+  
   public function setErrorReport($error_report = 0) {
     error_reporting($error_report );
   }
-  public function connect($db_host, $db_user, $db_pass, $db_or_dsn_name, $cndriver = "mysql") {
-    $this->db_host = $db_host;
-    $this->db_user = $db_user;
-    $this->db_pass = $db_pass;
-    $this->db_or_dsn_name = $db_or_dsn_name;
-    $this->cndriver = $cndriver;
-    if ($cndriver == "mysql") {
-      
-      if (! $this->con) {
-        $this->myconn = @mysqli_connect($db_host, $db_user, $db_pass, $db_or_dsn_name );
-        if ($this->myconn) {
-          $this->con = true;
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        return true;
-      }
+  
+  public function connect($db_host='', $db_user='', $db_pass='', $db_or_dsn_name='', $cndriver = "mysql") {
+    if ($cndriver=='json') {
+      /*
+       * When using json, the parameter $db_or_dsn_name is the JSON data structure containing the data
+       * 
+       */
+      $this->con = true;
+      $this->myconn = $db_or_dsn_name;
       return true;
-    } elseif ($cndriver == "psql") {
-      global $pgport;
-      if ($pgport == "" || $pgport == 0)
-        $pgport = 5432;
-      
-      $conn_string = "host=$db_host port=$pgport dbname=$db_or_dsn_name user=$db_user password=$db_pass";
-      $this->myconn = pg_connect($conn_string );
-      
-      if ($this->myconn) {
-        $this->con = true;
-        
-        return true;
-      } else
-        return false;
     } else {
-      
-      if (! $this->con) {
-        $this->myconn = odbc_connect($db_or_dsn_name, $db_user, $db_pass );
+      $this->db_host = $db_host;
+      $this->db_user = $db_user;
+      $this->db_pass = $db_pass;
+      $this->db_or_dsn_name = $db_or_dsn_name;
+      $this->cndriver = $cndriver;
+      if ($cndriver == "mysql") {
+        
+        if (! $this->con) {
+          $this->myconn = @mysqli_connect($db_host, $db_user, $db_pass, $db_or_dsn_name );
+          if ($this->myconn) {
+            $this->con = true;
+            return true;
+          } else {
+            return false;
+          }
+        } else {
+          return true;
+        }
+        return true;
+      } elseif ($cndriver == "psql") {
+        global $pgport;
+        if ($pgport == "" || $pgport == 0)
+          $pgport = 5432;
+        
+        $conn_string = "host=$db_host port=$pgport dbname=$db_or_dsn_name user=$db_user password=$db_pass";
+        $this->myconn = pg_connect($conn_string );
         
         if ($this->myconn) {
           $this->con = true;
+          
           return true;
-        } else {
+        } else
           return false;
-        }
       } else {
-        return true;
+        if (!$this->con) {
+          $this->myconn = odbc_connect($db_or_dsn_name, $db_user, $db_pass );
+          
+          if ($this->myconn) {
+            $this->con = true;
+            return true;
+          } else {
+            return false;
+          }
+        } else {
+          return true;
+        }
       }
     }
   }
-  public function disconnect($cndriver = "mysql") {
-    if ($cndriver == "mysql") {
+  
+  public function disconnect($cndriver="mysql") {
+    if ($cndriver=="mysql") {
       if ($this->con) {
-        if (@mysqli_close ()) {
+        if (@mysqli_close()) {
           $this->con = false;
           return true;
         } else {
           return false;
         }
       }
-    } elseif ($cndriver == "psql") {
+    } elseif ($cndriver=="psql") {
       $this->con = false;
       pg_close($this->myconn );
+    } elseif ($cndriver=='json') {
+      $this->con = false;
     } else {
-      
       $this->con = false;
       odbc_close($this->myconn );
     }
   }
+  
   public function load_xml_string($jrxml) {
     $keyword = "<queryString>
 		<![CDATA[";
@@ -118,10 +131,12 @@ class PHPJasperXML {
     $xml = simplexml_load_string($jrxml );
     $this->xml_dismantle($xml );
   }
+  
   public function load_xml_file($file) {
     $xml = file_get_contents($file );
     $this->load_xml_string($xml );
   }
+  
   public function xml_dismantle($xml) {
     $this->page_setting($xml );
     $i = 0;
@@ -155,16 +170,13 @@ class PHPJasperXML {
           }
           break;
         default :
-          
           foreach ($out as $b => $object ) {
-            
             // eval("\$this->pointer=&"."\$this->array$k".";");
             $this->arrayband [] = array (
                 "name" => $k 
             );
             
             if ($k == 'detail') {
-              
               $this->pointer = &$this->arraydetail [$this->detailbandqty];
               $this->detailbandheight [$this->detailbandqty] = $object ["height"] + 0;
               $this->detailbandqty ++;
@@ -211,9 +223,11 @@ class PHPJasperXML {
       }
     }
   }
+  
   public function subDataset_handler($data) {
     $this->subdataset [$data ['name'] . ''] = $data->queryString;
   }
+  
   // read level 0,Jasperreport page setting
   public function page_setting($xml_path) {
     $this->arrayPageSetting ["orientation"] = "P";
@@ -231,6 +245,7 @@ class PHPJasperXML {
     $this->y_axis = $xml_path ["topMargin"];
     $this->arrayPageSetting ["bottomMargin"] = $xml_path ["bottomMargin"];
   }
+  
   public function parameter_handler($xml_path) {
     // $defaultValueExpression=str_replace('"','',$xml_path->defaultValueExpression);
     // if($defaultValueExpression!='')
@@ -238,6 +253,7 @@ class PHPJasperXML {
     // else
     $this->arrayParameter [$xml_path ["name"] . ''];
   }
+  
   public function queryString_handler($xml_path) {
     $this->sql = $xml_path;
     if (isset($this->arrayParameter )) {
@@ -246,9 +262,11 @@ class PHPJasperXML {
       }
     }
   }
+  
   public function field_handler($xml_path) {
     $this->arrayfield [] = $xml_path ["name"];
   }
+  
   public function variable_handler($xml_path) {
     $this->arrayVariable ["$xml_path[name]"] = array (
         "calculation" => $xml_path ["calculation"] . "",
@@ -258,6 +276,7 @@ class PHPJasperXML {
         "resetGroup" => $xml_path ["resetGroup"] . "" 
     );
   }
+  
   public function group_handler($xml_path) {
     $this->arraygroup = $xml_path;
     
@@ -337,9 +356,9 @@ class PHPJasperXML {
     
     $this->totalgroup ++;
   }
+  
   public function default_handler($xml_path) {
     foreach ($xml_path as $k => $out ) {
-      
       switch ($k) {
         case "staticText" :
           $this->element_staticText($out );
@@ -414,6 +433,7 @@ class PHPJasperXML {
     }
     ;
   }
+  
   public function recommendFont($utfstring, $defaultfont, $pdffont = "") {
     
     /*
@@ -477,6 +497,7 @@ class PHPJasperXML {
     
     return $font; // mb_detect_encoding($utfstring);
   }
+  
   public function element_staticText($data) {
     $align = "L";
     $fill = 0;
@@ -680,6 +701,7 @@ class PHPJasperXML {
     // ### End of modification, below is the original line
     // $this->pointer[]=array("type"=>"MultiCell","width"=>$data->reportElement["width"],"height"=>$height,"txt"=>$data->text,"border"=>$border,"align"=>$align,"fill"=>$fill,"hidden_type"=>"statictext","soverflow"=>$stretchoverflow,"poverflow"=>$printoverflow,"rotation"=>$rotation);
   }
+  
   public function element_image($data) {
     $imagepath = $data->imageExpression;
     // $imagepath= substr($data->imageExpression, 1, -1);
@@ -721,6 +743,7 @@ class PHPJasperXML {
         break;
     }
   }
+  
   public function element_componentElement($data) {
     // $imagepath=$data->imageExpression;
     // //$imagepath= substr($data->imageExpression, 1, -1);
@@ -810,12 +833,14 @@ class PHPJasperXML {
     // break;
     // }
   }
+  
   public function element_break($data) {
     $this->pointer [] = array (
         "type" => "break",
         "hidden_type" => "break" 
     ); // ,"path"=>$imagepath,"x"=>$data->reportElement["x"]+0,"y"=>$data->reportElement["y"]+0,"width"=>$data->reportElement["width"]+0,"height"=>$data->reportElement["height"]+0,"imgtype"=>$imagetype,"link"=>substr($data->hyperlinkReferenceExpression,1,-1),"hidden_type"=>"image");
   }
+  
   public function element_crossTab($data) {
     // var_dump($data);die;
     $x = $data->reportElement ['x'] + 0;
@@ -1101,6 +1126,7 @@ class PHPJasperXML {
         'crosstabcell' => $crosstabcell 
     );
   }
+  
   public function element_line($data) { // default line width=0.567(no detect line width)
     $drawcolor = array (
         "r" => 0,
@@ -1154,8 +1180,7 @@ class PHPJasperXML {
     );
     //
     
-    if ($data->reportElement ["width"] [0] + 0 > $data->reportElement ["height"] [0] + 0) // width > height means horizontal line
-{
+    if ($data->reportElement ["width"] [0] + 0 > $data->reportElement ["height"] [0] + 0) {// width > height means horizontal line
       $this->pointer [] = array (
           "type" => "Line",
           "x1" => $data->reportElement ["x"] + 0,
@@ -1167,8 +1192,7 @@ class PHPJasperXML {
           "forecolor" => $data->reportElement ["forecolor"] . "",
           "printWhenExpression" => $data->reportElement->printWhenExpression 
       );
-    } elseif ($data->reportElement ["height"] [0] + 0 > $data->reportElement ["width"] [0] + 0) // vertical line
-{
+    } elseif ($data->reportElement ["height"] [0] + 0 > $data->reportElement ["width"] [0] + 0) { // vertical line
       $this->pointer [] = array (
           "type" => "Line",
           "x1" => $data->reportElement ["x"],
@@ -1197,6 +1221,7 @@ class PHPJasperXML {
         "hidden_type" => "fillcolor" 
     );
   }
+  
   public function element_rectangle($data) {
     $radius = $data ['radius'] + 0;
     $mode = $data->reportElement ["mode"] . "";
@@ -1293,6 +1318,7 @@ class PHPJasperXML {
     // $this->pointer[]=array("type"=>"SetDrawColor","r"=>0,"g"=>0,"b"=>0,"hidden_type"=>"drawcolor");
     // $this->pointer[]=array("type"=>"SetFillColor","r"=>255,"g"=>255,"b"=>255,"hidden_type"=>"fillcolor");
   }
+  
   public function element_ellipse($data) {
     $drawcolor = array (
         "r" => 0,
@@ -1391,6 +1417,7 @@ class PHPJasperXML {
         "hidden_type" => "fillcolor" 
     );
   }
+  
   public function element_textField($data) {
     $align = "L";
     $fill = 0;
@@ -1715,6 +1742,7 @@ class PHPJasperXML {
         break;
     }
   }
+  
   public function element_subReport($data) {
     // $b=$data->subreportParameter;
     $srsearcharr = array (
@@ -1755,22 +1783,20 @@ class PHPJasperXML {
         "hidden_type" => "subreport" 
     );
   }
-  public function transferDBtoArray($host, $user, $password, $db_or_dsn_name, $cndriver = "mysql") {
+  
+  public function transferDBtoArray($host, $user, $password, $db_or_dsn_name, $cndriver="mysql") {
     $this->m = 0;
     
-    if (! $this->connect($host, $user, $password, $db_or_dsn_name, $cndriver )) // connect database
-{
+    if (! $this->connect($host, $user, $password, $db_or_dsn_name, $cndriver )) { // connect database
       echo "Fail to connect database";
       exit(0 );
     }
     if ($this->debugsql == true) {
-      
       echo "<textarea cols='100' rows='40'>$this->sql</textarea>";
       die ();
     }
     
     if ($cndriver == "odbc") {
-      
       $result = odbc_exec($this->myconn, $this->sql );
       while($row = odbc_fetch_array($result ) ) {
         foreach ($this->arrayfield as $out ) {
@@ -1787,6 +1813,14 @@ class PHPJasperXML {
           $this->arraysqltable [$this->m] ["$out"] = $row ["$out"];
         }
         $this->m ++;
+      }
+    } elseif ($cndriver=='json') {
+      $result = $this->myconn;
+      foreach ($result as $row) {
+        foreach ($this->arrayfield as $out) {
+          $this->arraysqltable [$this->m]["$out"] = $row["$out"];
+        }
+        $this->m++;
       }
     } else {
       @mysqli_query ($this->myconn, "set names 'utf8'" );
@@ -1936,9 +1970,7 @@ class PHPJasperXML {
               // }
             }
           } // finisish resettype=''
-elseif ($out ['resetType'] == 'Group') // reset type='group'
-{
-            
+          elseif ($out ['resetType'] == 'Group') { // reset type='group'
             // print_r($this->grouplist);
             // echo "<br/>";
             // echo $out['resetGroup'] ."<br/>";
@@ -1982,8 +2014,7 @@ elseif ($out ['resetType'] == 'Group') // reset type='group'
               $value = ($value * ($this->report_count - 1) + $this->arraysqltable [$rowno] ["$out[target]"]) / $this->report_count;
             }
           } // finisish resettype=''
-elseif ($out ['resetType'] == 'Group') // reset type='group'
-{
+          elseif ($out ['resetType'] == 'Group') {// reset type='group'
             if ($this->groupnochange >= 0) {
             }
             if (isset($this->arrayVariable [$k] ['class'] ) && $this->arrayVariable [$k] ['class'] == "java.sql.Time") {
@@ -2042,6 +2073,7 @@ elseif ($out ['resetType'] == 'Group') // reset type='group'
       }
     }
   }
+  
   public function outpage($out_method = "I", $filename = "") {
     if ($this->pdflib == "TCPDF") {
       if ($this->arrayPageSetting ["orientation"] == "P")
@@ -2069,17 +2101,17 @@ elseif ($out ['resetType'] == 'Group') // reset type='group'
         ) );
     } elseif ($this->pdflib == "XLS") {
       
-      include dirname(__FILE__ ) . "/ExportXLS.inc.php";
+      include dirname(__FILE__ ) . "ExportXLS.inc.php";
       $xls = new ExportXLS($this, $filename, 'Excel5', $out_method );
       die ();
     } elseif ($this->pdflib == 'CSV') {
       
-      include dirname(__FILE__ ) . "/ExportXLS.inc.php";
+      include dirname(__FILE__ ) . "ExportXLS.inc.php";
       $xls = new ExportXLS($this, $filename, 'CSV', $out_method );
       die ();
     } elseif ($this->pdflib == 'XLST' || $this->pdflib == 'XLSX') {
       
-      include dirname(__FILE__ ) . "/ExportXLS.inc.php";
+      include dirname(__FILE__ ) . "ExportXLS.inc.php";
       $xls = new ExportXLS($this, $filename, 'Excel2007', $out_method );
       die ();
     } elseif ($this->pdflib == 'HTML') {
@@ -2087,7 +2119,7 @@ elseif ($out ['resetType'] == 'Group') // reset type='group'
       // echo $this->pdflib."SADSAD";die;
       //
       
-      include dirname(__FILE__ ) . "/ExportHTML.inc.php";
+      include dirname(__FILE__ ) . "ExportHTML.inc.php";
       
       // echo $this->pdflib."aaa";die;
       // echo $this->pdflib."bb";die;
