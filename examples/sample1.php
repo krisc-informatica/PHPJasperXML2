@@ -4,13 +4,8 @@
  * and open the template in the editor.
  */
 include_once('../lib/tcpdf/tcpdf.php');
-include_once("../lib/PHPJasperXML.inc.php");
+include_once("../PHPJasperXML.inc.php");
 include_once ('setting.php');
-
-
-
-
-
 
 $PHPJasperXML = new PHPJasperXML();
 //$PHPJasperXML->debugsql=true;
@@ -19,6 +14,5 @@ $PHPJasperXML->load_xml_file("sample1.jrxml");
 
 $PHPJasperXML->transferDBtoArray($server,$user,$pass,$db);
 $PHPJasperXML->outpage("I");    //page output method I:standard output  D:Download file
-
 
 ?>

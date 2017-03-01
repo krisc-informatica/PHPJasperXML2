@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 include_once('../lib/tcpdf/tcpdf.php');
-include_once("../lib/PHPJasperXML.inc.php");
+include_once("../PHPJasperXML.inc.php");
 
 
 include_once ('setting.php');

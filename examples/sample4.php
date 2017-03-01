@@ -1,7 +1,6 @@
 <?php
 include_once('../lib/tcpdf/tcpdf.php');
-
-include "../lib/PHPJasperXML.inc.php";
+include "../PHPJasperXML.inc.php";
 // Creating a workbook
 include ('setting.php');
 //$xml =  simplexml_load_file("sample9.jrxml");
