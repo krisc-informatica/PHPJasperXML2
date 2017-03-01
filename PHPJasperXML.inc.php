@@ -35,8 +35,7 @@ class PHPJasperXML {
     $this->setErrorReport(0);
     
     $this->pdflib = $pdflib;
-    if ($this->fontdir == "")
-      $this->fontdir = dirname(__FILE__) . "/lib/tcpdf/fonts";
+    if ($this->fontdir == "") $this->fontdir = dirname(__FILE__) . "/lib/tcpdf/fonts";
   }
   
   public function setErrorReport($error_report = 0) {
