@@ -4219,7 +4219,7 @@ class PHPJasperXML {
       $path = $this->analyse_expression($arraydata ["path"] );
       $imgtype = substr($path, - 3 );
       $arraydata ["link"] = $arraydata ["link"] . "";
-      if ($imgtype == 'jpg' || right($path, 3 ) == 'jpg' || right($path, 4 ) == 'jpeg')
+      if ($imgtype == 'jpg' || substr($path, -3 ) == 'jpg' || substr($path, -4 ) == 'jpeg')
         $imgtype = "JPEG";
       elseif ($imgtype == 'png' || $imgtype == 'PNG')
         $imgtype = "PNG";
